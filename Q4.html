@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Q4 Visualization</title>
+
+    <script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+  <script type="text/javascript" src="../lib/d3-dsv.min.js"></script>
+  <script type="text/javascript" src="../lib/d3-legend.min.js"></script>
+  <script type="text/javascript" src="../lib/d3-geo-projection.v2.min.js"></script>
+  <script type="text/javascript" src="../lib/d3-tip.min.js"></script>
+  <style type="text/css">
+.axis line{
+stroke: #706f6f;
+stroke-width: 0.5;
+shape-rendering: crispEdges;
+}
+
+path {
+stroke: #706f6f;
+stroke-width: 0.5;
+
+fill: none;
+}
+
+.axis text {
+fill: #2b2929;
+font-size: 80%;
+}
+
+
+.dot {
+    fill: #ffab00;
+    stroke: #fff;
+}
+path.line {
+    fill: none;
+    stroke: black;
+}
+
+path.line-1 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-2 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-3 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-4 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-5 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-6 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-7 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-8 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-9 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-10 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-11 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-12 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-13 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-14 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-15 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-16 {
+    fill: none;
+    stroke: #2b2929;
+}
+
+
+    </style>
+</head>
+<body>
+    <svg id="line_chart" width="960" height="500">
+        <!-- Main container for the line chart elements -->
+        <g id="container" transform="translate(40,60)">
+            <g id="lines"> 
+            </g>
+            <g id="x-axis-lines"> 
+            </g>
+            <g id="y-axis-lines"> 
+            </g>
+            <g id="circles"> 
+            </g>
+            <!-- Chart title -->
+            <text id="line_chart_title" x="280" y="-30">Board games by Rating 2015-2019</text>
+            <text id="credit" x="550" y="-30" fill="blue">jpate658</text>
+            <g id="legend" transform="translate(700,20)">
+            </g>
+            <text x="280" y="420">Rating</text>
+            <text transform="rotate(-90)" x="-200" y="-30">Count</text>
+        </g>
+    </svg>
+
+    <div id="bar_chart_title"></div>
+    <svg id="bar_chart" width="800" height="400" style="display: none">
+        <g id="container_2" transform="translate(60,60)">
+            <g id="bars"></g>
+            <g id="x-axis-bars"></g>
+            <g id="y-axis-bars"></g>
+            <text id="bar_x_axis_label" x="200" y="310">Number of users</text>
+            <text id="bar_y_axis_label" transform="rotate(-90)" x="-140" y="-35">Games</text>
+        </g>
+    </svg>
+
+    <script>
+        const margin = {top: 20, right: 20, bottom: 30, left: 40};
+        const width = 960 - margin.left - margin.right-80 ;
+        const height = 500 - margin.top - margin.bottom -60;
+
+        
+
+        const xScale = d3.scaleLinear().range([0, width]).domain([0, 9]);
+        const yScale = d3.scaleLinear().range([height, 0]);
+
+        const yearColors = {
+            2015: "#1f77b4",
+            2016: "#ff7f0e",
+            2017: "#2ca02c",
+            2018: "#d62728",
+            2019: "#9467bd"
+        };
+
+        const line = d3.line()
+            .x(d => xScale(Math.floor(d.average_rating)))
+            .y(d => yScale(d.count));
+
+        d3.csv("average-rating.csv").then(function(data) {
+            data.forEach(d => {
+                d.year = +d.year;
+                d.average_rating = +d.average_rating;
+                d.users_rated = +d.users_rated;
+            });
+
+            let aggregatedData = {};
+            const years = [2015, 2016, 2017, 2018, 2019];
+
+            years.forEach(year => {
+                aggregatedData[year] = Array(10).fill(0);
+            });
+
+            data.forEach(d => {
+                if (years.includes(d.year)) {
+                    const rating = Math.floor(d.average_rating);
+                    if (rating >= 0 && rating <= 9) {
+                        aggregatedData[d.year][rating]++;
+                    }
+                }
+            });
+
+            let lineData = [];
+            years.forEach(year => {
+                let yearData = [];
+                for (let rating = 0; rating <= 9; rating++) {
+                    yearData.push({
+                        year: year,
+                        rating: rating,
+                        count: aggregatedData[year][rating]
+                    });
+                }
+                lineData.push({
+                    year: year,
+                    values: yearData
+                });
+            });
+
+            const maxCount = d3.max(Object.values(aggregatedData).flat());
+            yScale.domain([0, maxCount]);
+
+            const linesG = d3.select("#lines");
+            linesG.selectAll(".year-line")
+                .data(lineData)
+                .enter()
+                .append("path")
+                .attr("class", "year-line")
+                .attr("d", d => line(d.values))
+                .style("stroke", d => yearColors[d.year]);
+
+            const circlesG = d3.select("#circles");
+            lineData.forEach(yearData => {
+                circlesG.selectAll(`.circle-${yearData.year}`)
+                    .data(yearData.values)
+                    .enter()
+                    .append("circle")
+                    .attr("r", 3)
+                    .attr("cx", d => xScale(d.rating))
+                    .attr("cy", d => yScale(d.count))
+                    .attr("fill", yearColors[yearData.year])
+                    .on("mouseover", showBarChart)
+                    .on("mouseout", hideBarChart);
+            });
+
+            const xAxis = d3.axisBottom(xScale).tickFormat(d3.format("d"));
+            const yAxis = d3.axisLeft(yScale);
+
+            d3.select("#x-axis-lines")
+                .attr("transform", `translate(0,${height})`)
+                .call(xAxis);
+
+            d3.select("#y-axis-lines")
+                .call(yAxis);
+
+            const legend = d3.select("#legend");
+            years.forEach((year, i) => {
+                const legendRow = legend.append("g")
+                    .attr("transform", `translate(0,${i * 20})`);
+
+                legendRow.append("circle")
+                    .attr("r", 5)
+                    .attr("fill", yearColors[year]);
+
+                legendRow.append("text")
+                    .attr("x", 15)
+                    .attr("y", 5)
+                    .text(year);
+            });
+
+function showBarChart(d) {
+    // Enlarge circle
+    d3.select(this)
+        .transition()
+        .duration(100)
+        .attr("r", 6);
+
+    const topGames = data
+        .filter(game =>
+            game.year === d.year &&
+            Math.floor(game.average_rating) === d.rating
+        )
+        .sort((a, b) => b.users_rated - a.users_rated)
+        .slice(0, 5);
+
+    if (topGames.length === 0 || (d.year === 2019 && d.rating === 4)) {
+        d3.select("#bar_chart").style("display", "none");
+        d3.select("#bar_chart_title").text("");
+        return;
+    }
+
+    d3.select("#bar_chart").style("display", "block");
+
+    d3.select("#bar_chart_title")
+        .text(`top ${topGames.length} most rated games of ${d.year} with rating ${d.rating}`);
+
+
+    const xBarScale = d3.scaleLinear()
+        .domain([0, d3.max(topGames, d => d.users_rated)])
+        .range([0, chartWidth - 100]);
+
+    const yBarScale = d3.scaleBand()
+        .domain(topGames.map(d => d.name.substring(0, 10)))
+        .range([0, chartHeight - 100])
+        .padding(0.1);
+
+    const bars = d3.select("#bars");
+    bars.selectAll("rect")
+        .data(topGames)
+        .join("rect")
+        .attr("x", 0)
+        .attr("y", d => yBarScale(d.name.substring(0, 10)))
+        .attr("width", d => xBarScale(d.users_rated))
+        .attr("height", yBarScale.bandwidth())
+        .attr("fill", "#2ca02c"); // Use same color for all bars
+
+    const xBarAxis = d3.axisBottom(xBarScale);
+    const yBarAxis = d3.axisLeft(yBarScale)
+        .tickFormat(d => d.substring(0, 10));
+
+    d3.select("#x-axis-bars")
+        .attr("transform", `translate(0,${chartHeight - 100})`)
+        .call(xBarAxis);
+
+    d3.select("#y-axis-bars")
+        .call(yBarAxis);
+}
+
+            function hideBarChart() {
+                d3.select(this)
+                    .transition()
+                    .duration(100)
+                    .attr("r", 3);
+
+                d3.select("#bar_chart")
+                    .style("display", "none");
+
+                d3.select("#bar_chart_title")
+                    .text("");
+            }
+        });
+    </script>
+</body>
+</html>
