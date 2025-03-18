@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <script src="../lib/d3.v5.min.js"></script>
+    <script src="../lib/d3-tip.min.js"></script>
+    <script src="../lib/d3-legend.min.js"></script>
+    <script src="../lib/topojson.v2.min.js"></script>
+    <script src="../lib/d3-geo-projection.v2.min.js"></script>
+
+    <style>
+        .d3-tip {
+            line-height: 1;
+            font-weight: bold;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <select id="yearDropdown"></select>
+
+    <svg id="choropleth" width="1400" height="700">
+        <g id="countries"></g>
+        <g id="legend"></g>
+    </svg>
+
+    <div id="tooltip"></div>
+
+    <script>
+        const width = 1400;
+        const height = 700;
+
+        const projection = d3.geoMercator()
+            .translate([width/2, height/2])
+            .scale(160)
+            .center([0,40]);
+
+        const path = d3.geoPath()
+            .projection(projection);
+
+        const colorScale = d3.scaleThreshold()
+            .domain([25, 50, 75])
+            .range(['#de2d26', '#fb6a4a', '#fcae91', '#fee5d9']);
+
+        const tip = d3.tip()
+            .attr('class', 'd3-tip')
+            .html(function(d) {
+                const currentYear = d3.select("#yearDropdown").property("value");
+                const countryData = d.data;
+
+                if (!countryData) {
+                    return `Country: ${d.properties.name}<br>` +
+                           `Year: ${currentYear}<br>` +
+                           `Number of Incidents: N/A<br>` +
+                           `Average Fine: N/A<br>` +
+                           `Average Imprisonment: N/A`;
+                }
+
+                return `Country: ${d.properties.name}<br>` +
+                       `Year: ${currentYear}<br>` +
+                       `Number of Incidents: ${countryData["Number_of_incidents"]}<br>` +
+                       `Average Fine: ${parseFloat(countryData["Average_Fine"]).toFixed(2)}<br>` +
+                       `Average Imprisonment: ${parseFloat(countryData["Average_Imprisonment"]).toFixed(2)}`;
+            });
+
+        d3.select("#choropleth").call(tip);
+
+        Promise.all([
+            d3.json("../data/world_countries.json"),
+            d3.csv("../data/wildlife_trafficking.csv")
+        ]).then(function(values) {
+            const [world, traffickingData] = values;
+
+            const years = [...new Set(traffickingData.map(d => d.Year))]
+                .sort((a, b) => +a - +b);
+
+            d3.select("#yearDropdown")
+                .selectAll("option")
+                .data(years)
+                .enter()
+                .append("option")
+                .attr("value", d => d)
+                .text(d => d);
+
+            function createMapAndLegend(selectedYear) {
+                const yearData = traffickingData.filter(d => d.Year === selectedYear);
+
+                const countries = d3.select("#countries")
+                    .selectAll("path")
+                    .data(world.features);
+
+                countries.enter()
+                    .append("path")
+                    .merge(countries)
+                    .attr("d", path)
+                    .attr("fill", d => {
+    const countryData = yearData.find(td => td.Country === d.properties.name);
+    d.data = countryData;
+    if (!countryData || isNaN(+countryData["Number of Incidents"])) return "#ccc";
+    return colorScale(+countryData["Number of Incidents"]);
+})
+                    .on("mouseover", tip.show)
+                    .on("mouseout", tip.hide);
+
+                countries.exit().remove();
+
+                const legend = d3.legendColor()
+                    .scale(colorScale)
+                    .labels([
+                        "0 to 25",
+                        "25 to 50",
+                        "50 to 75",
+                        "75 to 100"
+                    ])
+                    .title("Number of Incidents");
+
+                d3.select("#legend")
+                    .attr("transform", "translate(1250,20)")
+                    .call(legend);
+            }
+
+            const defaultYear = years[0];
+            d3.select("#yearDropdown").property("value", defaultYear);
+            createMapAndLegend(defaultYear);
+
+            d3.select("#yearDropdown").on("change", function() {
+                createMapAndLegend(this.value);
+            });
+
+            d3.select("#choropleth")
+                .append("text")
+                .attr("x", width - 100)
+                .attr("y", height - 20)
+                .text("jpate658")
+                .style("fill", "blue");
+        });
+    </script>
+</body>
+</html>
